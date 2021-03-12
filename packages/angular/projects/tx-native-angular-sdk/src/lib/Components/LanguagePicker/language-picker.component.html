@@ -1,0 +1,5 @@
+<select [class]="className" (input)="onChange($event)">
+  <option *ngFor="let language of languages" [selected]="language.code === translationService.getLocale()" [value]="language.code">
+  {{ language.name }}
+  </option>
+</select>

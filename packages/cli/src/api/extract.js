@@ -1,9 +1,11 @@
 /* eslint no-underscore-dangle: 0 */
+const ngHtmlParser = require('angular-html-parser');
 
 const fs = require('fs');
 const babelParser = require('@babel/parser');
 const babelTraverse = require('@babel/traverse').default;
 const _ = require('lodash');
+const path = require('path');
 const { generateKey } = require('@transifex/native');
 
 const mergePayload = require('./merge');
@@ -82,6 +84,64 @@ function isTransifexCall(node) {
   return false;
 }
 
+/**
+ * Parse an HTML file and detects T/UT tags
+ *
+ * @param {Object} HASHES
+ * @param {String} filename
+ * @param {String} relativeFile
+ * @param {String[]} appendTags
+ * @param {Object} options
+ * @returns void
+ */
+function parseHTMLTemplateFile(HASHES, filename, relativeFile, appendTags, options) {
+  const TXComponents = [];
+
+  function parseTemplateNode(children) {
+    if (children) {
+      _.each(children, (child) => {
+        if (child.name === 'T' || child.name === 'UT') {
+          TXComponents.push(child);
+        }
+        parseTemplateNode(child.children);
+      });
+    }
+  }
+
+  const data = fs.readFileSync(filename, 'utf8');
+  const { rootNodes, errors } = ngHtmlParser.parse(data);
+  if (errors.length) return;
+
+  parseTemplateNode(rootNodes);
+  _.each(TXComponents, (txcmp) => {
+    let _str = '';
+    let _key = '';
+    const params = {};
+    if (txcmp.attrs) {
+      _.each(txcmp.attrs, (attribute) => {
+        if (attribute.name === '_str') {
+          _str = attribute.value;
+        } else if (attribute.name === '_key') {
+          _key = attribute.value;
+        } else {
+          params[attribute.name] = attribute.value;
+        }
+      });
+    }
+    if (_str) {
+      const partial = createPayload(_str, params, relativeFile, appendTags);
+      if (!isPayloadValid(partial, options)) return;
+
+      mergePayload(HASHES, {
+        [_key || partial.key]: {
+          string: partial.string,
+          meta: partial.meta,
+        },
+      });
+    }
+  });
+}
+
 function _parse(source) {
   try {
     return babelParser.parse(
@@ -126,78 +186,120 @@ function extractPhrases(file, relativeFile, options = {}) {
   const { appendTags } = options;
   const HASHES = {};
   const source = fs.readFileSync(file, 'utf8');
-  const ast = _parse(source);
-  babelTraverse(ast, {
+  if (path.extname(file) !== '.html') {
+    const ast = _parse(source);
+    babelTraverse(ast, {
     // T / UT functions
-    CallExpression({ node }) {
+      CallExpression({ node }) {
       // Check if node is a Transifex function
-      if (!isTransifexCall(node)) return;
-      if (_.isEmpty(node.arguments)) return;
+        if (!isTransifexCall(node)) return;
+        if (_.isEmpty(node.arguments)) return;
 
-      // Verify that at least the string is passed to the function
-      const string = node.arguments[0].value;
-      if (!_.isString(string)) return;
+        // Verify that at least the string is passed to the function
+        const string = node.arguments[0].value;
+        if (!_.isString(string)) return;
 
-      // Extract function parameters
-      const params = {};
-      if (
-        node.arguments[1]
+        // Extract function parameters
+        const params = {};
+        if (
+          node.arguments[1]
         && node.arguments[1].type === 'ObjectExpression'
-      ) {
-        _.each(node.arguments[1].properties, (prop) => {
+        ) {
+          _.each(node.arguments[1].properties, (prop) => {
           // get only string on number params
-          if (_.isString(prop.value.value) || _.isNumber(prop.value.value)) {
-            params[prop.key.name] = prop.value.value;
+            if (_.isString(prop.value.value) || _.isNumber(prop.value.value)) {
+              params[prop.key.name] = prop.value.value;
+            }
+          });
+        }
+
+        const partial = createPayload(string, params, relativeFile, appendTags);
+        if (!isPayloadValid(partial, options)) return;
+
+        mergePayload(HASHES, {
+          [partial.key]: {
+            string: partial.string,
+            meta: partial.meta,
+          },
+        });
+      },
+
+      // Decorator
+      Decorator({ node }) {
+        const elem = node.expression;
+
+        if (!elem || !elem.arguments.length) return;
+        if (!node.expression || !node.expression.arguments.length) return;
+        if (!node.expression.callee.name === 'T') return;
+
+        let _str = '';
+        let _key = '';
+        const params = {};
+        _.each(node.expression.arguments, (arg) => {
+          if (arg.type === 'StringLiteral') {
+            _str = arg.value;
+          } else if (arg.type === 'ObjectExpression') {
+            _.each(arg.properties, (prop) => {
+              if (prop.key.name === '_key') {
+                _key = prop.value.value;
+              } else {
+                params[prop.key.name] = prop.value.value;
+              }
+            });
           }
         });
-      }
 
-      const partial = createPayload(string, params, relativeFile, appendTags);
-      if (!isPayloadValid(partial, options)) return;
+        if (_str) {
+          const partial = createPayload(_str, params, relativeFile, appendTags);
+          if (!isPayloadValid(partial, options)) return;
 
-      mergePayload(HASHES, {
-        [partial.key]: {
-          string: partial.string,
-          meta: partial.meta,
-        },
-      });
-    },
-
-    // React component
-    JSXElement({ node }) {
-      const elem = node.openingElement;
-
-      if (!elem || !elem.name) return;
-      if (elem.name.name !== 'T' && elem.name.name !== 'UT') return;
-
-      let string;
-      const params = {};
-      _.each(elem.attributes, (attr) => {
-        const property = attr.name && attr.name.name;
-        const value = attr.value && attr.value.value;
-        if (!property || !value) return;
-        if (property === '_str') {
-          string = value;
-          return;
+          mergePayload(HASHES, {
+            [_key || partial.key]: {
+              string: partial.string,
+              meta: partial.meta,
+            },
+          });
         }
-        if (_.isString(value) || _.isNumber(value)) {
-          params[property] = value;
-        }
-      });
+      },
 
-      if (!string) return;
+      // React component
+      JSXElement({ node }) {
+        const elem = node.openingElement;
 
-      const partial = createPayload(string, params, relativeFile, appendTags);
-      if (!isPayloadValid(partial, options)) return;
+        if (!elem || !elem.name) return;
+        if (elem.name.name !== 'T' && elem.name.name !== 'UT') return;
 
-      mergePayload(HASHES, {
-        [partial.key]: {
-          string: partial.string,
-          meta: partial.meta,
-        },
-      });
-    },
-  });
+        let string;
+        const params = {};
+        _.each(elem.attributes, (attr) => {
+          const property = attr.name && attr.name.name;
+          const value = attr.value && attr.value.value;
+          if (!property || !value) return;
+          if (property === '_str') {
+            string = value;
+            return;
+          }
+          if (_.isString(value) || _.isNumber(value)) {
+            params[property] = value;
+          }
+        });
+
+        if (!string) return;
+
+        const partial = createPayload(string, params, relativeFile, appendTags);
+        if (!isPayloadValid(partial, options)) return;
+
+        mergePayload(HASHES, {
+          [partial.key]: {
+            string: partial.string,
+            meta: partial.meta,
+          },
+        });
+      },
+    });
+  } else if (path.extname(file) === '.html') {
+    parseHTMLTemplateFile(HASHES, file, relativeFile, appendTags, options);
+  }
 
   return HASHES;
 }

@@ -37,7 +37,7 @@ class PushCommand extends Command {
       : path.join(pwd, args.pattern);
 
     if (isFolder(filePattern)) {
-      filePattern = path.join(filePattern, '**/*.{js,jsx,ts,tsx}');
+      filePattern = path.join(filePattern, '**/*.{js,jsx,ts,tsx,html}');
     }
 
     const appendTags = stringToArray(flags['append-tags']);
