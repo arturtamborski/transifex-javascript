@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-
-import { LanguagePickerComponent } from './language-picker.component';
+import { LanguagePickerComponent } from '../src/lib/Components/LanguagePicker/language-picker.component';
 
 describe('LanguagePickerComponent', () => {
   let component: LanguagePickerComponent;

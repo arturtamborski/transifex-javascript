@@ -20,6 +20,8 @@
       "es2018",
       "dom"
     ],
+    "types": [ "node" ],
+    "typeRoots": [ "../node_modules/@types" ],
     "paths": {
       "tx-native-angular-sdk": [
         "dist/tx-native-angular-sdk/tx-native-angular-sdk",

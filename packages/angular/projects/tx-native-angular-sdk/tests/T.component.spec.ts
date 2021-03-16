@@ -1,20 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TComponent } from '../src/lib/Components/T/T.component';
 
-import { UTComponent } from './UT.component';
-
-describe('UTComponent', () => {
-  let component: UTComponent;
-  let fixture: ComponentFixture<UTComponent>;
+describe('TComponent', () => {
+  let component: TComponent;
+  let fixture: ComponentFixture<TComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ UTComponent ]
+      declarations: [ TComponent ]
     })
     .compileComponents();
   });
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(UTComponent);
+    fixture = TestBed.createComponent(TComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

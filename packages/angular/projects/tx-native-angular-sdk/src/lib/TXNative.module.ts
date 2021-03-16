@@ -4,14 +4,25 @@ import { BrowserModule } from '@angular/platform-browser';
 import { LanguagePickerComponent } from './Components/LanguagePicker/language-picker.component';
 import { TComponent } from './Components/T/T.component';
 import { UTComponent } from './Components/UT/UT.component';
+import { TranslatePipe } from './Pipes/translate.pipe';
 import { TDecoratorService } from './Services/t-decorator.service';
 import { TranslationService } from './Services/translation.service';
 
 
 @NgModule({
-  declarations: [TComponent, UTComponent, LanguagePickerComponent],
+  declarations: [
+    TComponent,
+    UTComponent,
+    LanguagePickerComponent,
+    TranslatePipe
+  ],
   imports: [BrowserModule],
-  exports: [TComponent, UTComponent, LanguagePickerComponent]
+  exports: [
+    TComponent,
+    UTComponent,
+    LanguagePickerComponent,
+    TranslatePipe
+  ]
 })
 export class TxNativeModule {
   // Need to instantiate the decorator service to have it available

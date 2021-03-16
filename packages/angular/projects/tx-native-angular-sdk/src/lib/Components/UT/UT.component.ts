@@ -24,7 +24,7 @@ import { TranslationService } from '../../Services/translation.service';
  * @param {boolean=} _inline
  * @param {Object=} _vars
  */
-export class UTComponent extends TComponent implements OnInit {
+export class UTComponent extends TComponent {
   /**
    * Constructor
    * @param {TranslationService} translationService

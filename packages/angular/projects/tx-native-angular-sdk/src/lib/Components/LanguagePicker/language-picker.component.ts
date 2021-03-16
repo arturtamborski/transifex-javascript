@@ -4,7 +4,7 @@ import { ILanguage } from '../../interfaces';
 import { TranslationService } from '../../Services/translation.service';
 
 @Component({
-  selector: 'app-language-picker',
+  selector: 'tx-language-picker',
   templateUrl: './language-picker.component.html',
   styleUrls: ['./language-picker.component.css']
 })
@@ -48,7 +48,7 @@ export class LanguagePickerComponent implements OnInit {
    */   
   async onChange(event: Event) {
     const locale = (event.target as HTMLSelectElement).value || '';
-    this.localeChanged.emit(locale);
     await this.translationService.setLocale(locale);
+    this.localeChanged.emit(locale);
   }
 }

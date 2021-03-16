@@ -1,5 +1,6 @@
-import { Component, Input, OnInit, SimpleChanges } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Component, Input, OnDestroy,
+  OnInit, SimpleChanges } from '@angular/core';
+import { Observable, Subscription } from 'rxjs';
 
 import { ITranslateParams } from '../../interfaces';
 import { TranslationService } from '../../Services/translation.service';
@@ -22,7 +23,7 @@ import { TranslationService } from '../../Services/translation.service';
  * @param {boolean=} _inline
  * @param {Object=} _vars
  */
-export class TComponent implements OnInit {
+export class TComponent implements OnInit, OnDestroy {
   @Input()
   _str: string = '';
   @Input()
@@ -55,6 +56,7 @@ export class TComponent implements OnInit {
 
   // Observable for detecting locale changes
   _localeChanged = new Observable<string>();
+  _localeChangeSubscription: Subscription;
 
   /**
    * Constructor
@@ -62,21 +64,26 @@ export class TComponent implements OnInit {
    */
   constructor(protected translationService: TranslationService) {
     this._localeChanged = translationService.localeChanged;
-    this._localeChanged.subscribe((locale) => {
-      Object.assign(this._translateParams, {
-        _key: this._key,
-        _context: this._context,
-        _comment: this._comment,
-        _charlimit: this._charlimit,
-        _tags: this._tags,
-        _escapeVars: this._escapeVars,
-        _inline: this._inline,
+    this._localeChangeSubscription = this._localeChanged.subscribe(
+      (locale) => {
+        Object.assign(this._translateParams, {
+          _key: this._key,
+          _context: this._context,
+          _comment: this._comment,
+          _charlimit: this._charlimit,
+          _tags: this._tags,
+          _escapeVars: this._escapeVars,
+          _inline: this._inline,
+        });
+        this.translate();
       });
-      this.translate();
-    });
   }
 
-  ngOnInit(): void { }
+  ngOnInit() { }
+
+  ngOnDestroy() {
+    this._localeChangeSubscription.unsubscribe();
+  }
 
   /**
    * Input parameters change detector
